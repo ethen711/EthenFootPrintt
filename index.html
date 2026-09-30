@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Tiến's Footprints - Interactive Travel Log</title>
+    <meta name="description" content="A personal interactive travel log web app featuring Leaflet topomap, journey markers, detailed trip sidebar, Supabase authentication, and trip management." />
+    <meta property="og:title" content="Tiến's Footprints - Interactive Travel Log" />
+    <meta property="og:description" content="A personal interactive travel log web app featuring Leaflet topomap, journey markers, detailed trip sidebar, Supabase authentication, and trip management." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- Google Fonts: Lexend (Headings) & Plus Jakarta Sans (Body) - 100% Vietnamese Diacritics Support -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600;1,700&display=swap" rel="stylesheet">
+
+    <!-- PWA & Mobile Web App Meta Tags (iOS Safari Optimized) -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Tiến's Trips" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#ea580c" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <!-- Leaflet.js v1.9.4 CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/style.css" />
+
+    <!-- Leaflet.js v1.9.4 JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- Supabase JS v2 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  </head>
+  <body>
+    <!-- Main App Layout (Flexbox: Map Left/Main, Sidebar Right) -->
+    <div id="app-container">
+      
+      <!-- 1. MAP CONTAINER (Left / Main) -->
+      <main id="map-wrapper" aria-label="Interactive Travel Map">
+        <!-- Interactive Leaflet Map Instance -->
+        <div id="map"></div>
+
+        <!-- Brand pill on top of map -->
+        <div class="map-brand-overlay">
+          <div class="map-brand-dot"></div>
+          <div class="map-brand-text">VIETNAM OVERLAND &bull; <span id="map-badge-count">6 Điểm Đến</span></div>
+        </div>
+
+        <!-- Quick map action controls & Layer Switcher -->
+        <div class="map-controls-group">
+          <button id="btn-reset-map" class="map-btn" title="Quay lại góc nhìn toàn cảnh Việt Nam">
+            <i class="fa-solid fa-earth-asia"></i> <span>Toàn cảnh</span>
+          </button>
+
+          <!-- Map Layer Switcher Dropdown (Tiếng Việt có dấu, Topo, Vệ tinh) -->
+          <div class="layer-switcher-wrapper">
+            <button id="btn-layer-dropdown" class="map-btn" title="Đổi giao diện bản đồ">
+              <i class="fa-solid fa-layer-group"></i>
+              <span id="current-layer-name">Bản đồ Tiếng Việt</span>
+              <i class="fa-solid fa-chevron-down caret-icon"></i>
+            </button>
+            <div id="layer-dropdown-menu" class="layer-dropdown-menu">
+              <button type="button" class="layer-option active" data-layer="google_vi">
+                <i class="fa-solid fa-check check-icon"></i>
+                <div class="layer-opt-text">
+                  <div class="layer-opt-title">Tiếng Việt có dấu (Chuẩn)</div>
+                  <div class="layer-opt-sub">Bản đồ chi tiết, 100% tiếng Việt</div>
+                </div>
+              </button>
+              <button type="button" class="layer-option" data-layer="google_terrain">
+                <i class="fa-solid fa-check check-icon"></i>
+                <div class="layer-opt-text">
+                  <div class="layer-opt-title">Địa hình Topo (Tiếng Việt)</div>
+                  <div class="layer-opt-sub">Độ cao, đường đèo &amp; đồi núi</div>
+                </div>
+              </button>
+              <button type="button" class="layer-option" data-layer="google_hybrid">
+                <i class="fa-solid fa-check check-icon"></i>
+                <div class="layer-opt-text">
+                  <div class="layer-opt-title">Vệ tinh Hybrid (Tiếng Việt)</div>
+                  <div class="layer-opt-sub">Ảnh chụp vệ tinh có tên đường</div>
+                </div>
+              </button>
+              <button type="button" class="layer-option" data-layer="carto_voyager">
+                <i class="fa-solid fa-check check-icon"></i>
+                <div class="layer-opt-text">
+                  <div class="layer-opt-title">Du lịch Voyager</div>
+                  <div class="layer-opt-sub">Giao diện nhẹ nhàng, tinh tế</div>
+                </div>
+              </button>
+              <button type="button" class="layer-option" data-layer="esri_topo">
+                <i class="fa-solid fa-check check-icon"></i>
+                <div class="layer-opt-text">
+                  <div class="layer-opt-title">Địa hình Quốc tế (Esri)</div>
+                  <div class="layer-opt-sub">Bản đồ địa hình Topo Esri</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Floating Add Trip Button -->
+        <button id="floating-add-btn" class="floating-add-btn" title="Thêm chuyến đi mới">
+          <i class="fa-solid fa-plus"></i>
+          <span>Thêm Chuyến Đi</span>
+        </button>
+
+        <!-- Coordinate Picker Guidance Banner -->
+        <div id="coord-picker-banner" class="coord-picker-banner">
+          <span><i class="fa-solid fa-crosshairs"></i> Nhấp chuột lên bản đồ để lấy tọa độ</span>
+          <button id="btn-cancel-pick">Hủy</button>
+        </div>
+      </main>
+
+      <!-- 2. SIDEBAR (Right: ~440px desktop, sliding drawer mobile) -->
+      <aside id="sidebar" aria-label="Travel Trip Details and Log">
+        <!-- Mobile drag indicator bar -->
+        <div class="mobile-handle"></div>
+
+        <!-- Sidebar Header -->
+        <header class="sidebar-header">
+          <div class="header-top-row">
+            <div class="brand-title-wrap">
+              <div class="brand-icon-box">
+                <i class="fa-solid fa-compass"></i>
+              </div>
+              <div>
+                <h1 class="brand-title">TIẾN'S FOOTPRINTS</h1>
+              </div>
+            </div>
+
+            <!-- Header Actions & Subtle Admin Lock -->
+            <div class="header-actions">
+              <!-- PWA Install Button -->
+              <button id="btn-install-app" class="icon-btn pwa-install-btn" title="Cài đặt Ứng dụng PWA">
+                <i class="fa-solid fa-mobile-screen-button"></i>
+              </button>
+
+              <!-- Admin Active Pill -->
+              <div id="admin-badge" class="admin-active-badge">
+                <i class="fa-solid fa-shield-halved"></i>
+                <span id="admin-user-email">Admin</span>
+                <button id="btn-admin-logout" title="Đăng xuất"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
+              </div>
+
+              <!-- Subtle / Discreet Lock icon for Admin Mode -->
+              <button id="btn-admin-login" class="icon-btn admin-lock" title="Quản trị viên">
+                <i class="fa-solid fa-lock"></i>
+              </button>
+            </div>
+          </div>
+
+          <p class="brand-subtitle">
+            Chasing horizons on two wheels &amp; preserving memories along Vietnam's roads
+          </p>
+
+          <!-- Travel stats row -->
+          <div class="sidebar-stats-row">
+            <div class="stat-item">
+              <span id="stat-total-trips" class="stat-value">6</span>
+              <span class="stat-label">Hành trình</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+              <span id="stat-total-km" class="stat-value">1,325 km</span>
+              <span class="stat-label">Tổng quãng đường</span>
+            </div>
+          </div>
+
+          <!-- Tab pills -->
+          <div class="sidebar-tab-pills">
+            <button id="tab-all" class="tab-pill active">
+              <i class="fa-solid fa-map-location-dot"></i> Tất cả chuyến đi
+            </button>
+            <button id="tab-detail" class="tab-pill">
+              <i class="fa-solid fa-book-open"></i> Chi tiết hành trình
+            </button>
+          </div>
+        </header>
+
+        <!-- Sidebar Content Scrollable Area -->
+        <div class="sidebar-content">
+          
+          <!-- STATE 1: Empty / Default State -->
+          <div id="empty-state-view" class="empty-state">
+            <div class="empty-state-icon-wrap">
+              <i class="fa-solid fa-motorcycle"></i>
+            </div>
+            <h2 class="empty-state-title">Chọn một điểm trên bản đồ</h2>
+            <p class="empty-state-desc">
+              Nhấp vào bất kỳ điểm ghim nào trên bản đồ để khám phá nhật ký hành trình, hình ảnh và câu chuyện trên từng cung đường.
+            </p>
+
+            <!-- VEHICLE FILTER TAGS (Horizontal Scrollable Container) -->
+            <div class="vehicle-filter-section">
+              <div class="vehicle-filter-header">
+                <span class="vehicle-filter-label"><i class="fa-solid fa-motorcycle"></i> Lọc theo phương tiện:</span>
+                <span id="vehicle-filter-stat" class="filter-count-badge">Tất cả</span>
+              </div>
+              <div id="vehicle-filter-scroll" class="vehicle-filter-container">
+                <!-- Dynamically populated buttons -->
+              </div>
+            </div>
+
+            <div class="recent-trips-heading">
+              <span>Danh sách hành trình</span>
+              <i class="fa-solid fa-route"></i>
+            </div>
+
+            <!-- List of trips cards -->
+            <div id="recent-trips-list" class="trip-cards-list"></div>
+          </div>
+
+          <!-- STATE 2: Active Trip Details View -->
+          <div id="active-trip-view" class="active-trip-view">
+            <button id="btn-back-to-all" class="back-to-all-btn">
+              <i class="fa-solid fa-arrow-left"></i> Quay lại danh sách
+            </button>
+
+            <!-- MULTI-IMAGE CAROUSEL CONTAINER -->
+            <div id="trip-carousel-container" class="trip-carousel-container">
+              <div id="carousel-track" class="carousel-track">
+                <img id="trip-detail-img" class="carousel-slide-img" src="" alt="Trip Photo" />
+              </div>
+              <!-- Carousel Navigation Arrows -->
+              <button type="button" id="carousel-prev-btn" class="carousel-nav-btn prev" aria-label="Ảnh trước">
+                <i class="fa-solid fa-chevron-left"></i>
+              </button>
+              <button type="button" id="carousel-next-btn" class="carousel-nav-btn next" aria-label="Ảnh tiếp">
+                <i class="fa-solid fa-chevron-right"></i>
+              </button>
+              <!-- Carousel Counter Badge -->
+              <div id="carousel-counter-badge" class="trip-hero-badge">
+                <i class="fa-solid fa-camera"></i> <span id="carousel-counter-text">1 / 1</span>
+              </div>
+              <!-- Zoom Hint Button -->
+              <div id="carousel-zoom-hint" class="trip-hero-zoom-hint" title="Bấm để xem ảnh phóng to">
+                <i class="fa-solid fa-expand"></i>
+              </div>
+              <!-- Carousel Dot Indicators -->
+              <div id="carousel-dots" class="carousel-dots-container"></div>
+            </div>
+
+            <!-- Trip Title -->
+            <h2 id="trip-detail-title" class="active-trip-title"></h2>
+
+            <!-- Meta Badges Grid -->
+            <div class="trip-meta-grid">
+              <!-- Location Badge -->
+              <div class="meta-badge-card">
+                <div class="meta-badge-icon">
+                  <i class="fa-solid fa-location-dot"></i>
+                </div>
+                <div class="meta-badge-info">
+                  <div class="meta-badge-label">Địa điểm</div>
+                  <div id="meta-location-val" class="meta-badge-value"></div>
+                </div>
+              </div>
+
+              <!-- Distance Badge -->
+              <div class="meta-badge-card">
+                <div class="meta-badge-icon">
+                  <i class="fa-solid fa-route"></i>
+                </div>
+                <div class="meta-badge-info">
+                  <div class="meta-badge-label">Khoảng cách</div>
+                  <div id="meta-distance-val" class="meta-badge-value"></div>
+                </div>
+              </div>
+
+              <!-- Vehicle Badge -->
+              <div class="meta-badge-card">
+                <div class="meta-badge-icon">
+                  <i class="fa-solid fa-motorcycle"></i>
+                </div>
+                <div class="meta-badge-info">
+                  <div class="meta-badge-label">Phương tiện</div>
+                  <div id="meta-vehicle-val" class="meta-badge-value"></div>
+                </div>
+              </div>
+
+              <!-- Date Badge -->
+              <div class="meta-badge-card">
+                <div class="meta-badge-icon">
+                  <i class="fa-regular fa-calendar-days"></i>
+                </div>
+                <div class="meta-badge-info">
+                  <div class="meta-badge-label">Ngày khởi hành</div>
+                  <div id="meta-date-val" class="meta-badge-value"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Description Block with Left Border Styling -->
+            <div class="trip-description-block">
+              <div class="trip-description-label">
+                <i class="fa-solid fa-quote-left"></i> Ghi chép hành trình
+              </div>
+              <div id="trip-detail-desc"></div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="trip-actions-row">
+              <button id="btn-fly-to-pin" class="action-btn primary" title="Phóng to đến vị trí này trên bản đồ">
+                <i class="fa-solid fa-location-crosshairs"></i> Vị trí ghim
+              </button>
+              <button id="btn-share-trip" class="action-btn" title="Sao chép tóm tắt chuyến đi">
+                <i class="fa-solid fa-share-nodes"></i> Chia sẻ
+              </button>
+              <button id="btn-edit-trip" class="action-btn" style="background:#2563eb;color:#fff;border-color:#2563eb;display:none;" title="Chỉnh sửa hành trình này">
+                <i class="fa-solid fa-pen-to-square"></i> Sửa
+              </button>
+              <button id="btn-delete-trip" class="action-btn danger" style="display: none;" title="Xóa chuyến đi này">
+                <i class="fa-solid fa-trash-can"></i> Xóa
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar Footer -->
+        <footer class="sidebar-footer">
+          <div id="supabase-status-pill" class="supabase-status-pill" title="Trạng thái kết nối cơ sở dữ liệu Supabase">
+            <span id="supabase-status-dot" class="status-dot warning"></span>
+            <span id="supabase-status-text">Demo Mode</span>
+            <i class="fa-solid fa-database" style="font-size: 0.65rem; opacity: 0.7;"></i>
+          </div>
+          <span id="meta-coords-val" style="font-family: monospace; font-size: 0.72rem; color: var(--gray-400);">10.0452°N, 105.7469°E</span>
+        </footer>
+      </aside>
+
+    </div>
+
+    <!-- ==================================================================== -->
+    <!-- MODAL 1: AUTHENTICATION / ADMIN LOGIN                                 -->
+    <!-- ==================================================================== -->
+    <div id="modal-login" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-login-title">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-header-title" id="modal-login-title">
+            <i class="fa-solid fa-shield-halved"></i>
+            <span>Đăng nhập Quản trị viên</span>
+          </div>
+          <button class="modal-close-btn" aria-label="Đóng"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form id="login-form">
+          <div class="modal-body">
+            <p style="font-size: 0.84rem; color: var(--gray-500); margin-bottom: 18px; line-height: 1.5;">
+              Đăng nhập tài khoản Supabase Auth để thêm, chỉnh sửa hoặc xóa các hành trình trên bản đồ.
+            </p>
+            <div class="form-group">
+              <label class="form-label" for="login-email">Email <span class="req">*</span></label>
+              <input type="email" id="login-email" class="form-input" placeholder="admin@example.com" required autocomplete="username" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="login-password">Mật khẩu <span class="req">*</span></label>
+              <input type="password" id="login-password" class="form-input" placeholder="••••••••" required autocomplete="current-password" />
+            </div>
+
+            <!-- Quick Demo Mode button for instant evaluation -->
+            <div style="background: var(--primary-light); border: 1px solid var(--primary-border); border-radius: 8px; padding: 10px 12px; margin-top: 14px; font-size: 0.78rem; color: var(--dark-700);">
+              <div style="font-weight: 700; margin-bottom: 4px; color: var(--primary);">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Thử nghiệm nhanh (Demo Mode)
+              </div>
+              Chưa tạo tài khoản Supabase? Bạn có thể đăng nhập tức thì bằng nút dưới:
+              <div style="margin-top: 8px;">
+                <button type="button" id="btn-demo-admin-login" class="btn-secondary" style="font-size: 0.78rem; padding: 6px 12px; width: 100%;">
+                  <i class="fa-solid fa-key"></i> Kích hoạt Quản trị viên Demo
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary btn-modal-cancel">Hủy</button>
+            <button type="submit" id="btn-login-submit" class="btn-primary">
+              <i class="fa-solid fa-arrow-right-to-bracket"></i> Đăng nhập
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ==================================================================== -->
+    <!-- MODAL 2: ADD NEW TRIP FORM                                           -->
+    <!-- ==================================================================== -->
+    <div id="modal-add-trip" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-add-trip-title">
+      <div class="modal-card modal-large">
+        <div class="modal-header">
+          <div class="modal-header-title" id="modal-add-trip-title">
+            <i class="fa-solid fa-map-pin"></i>
+            <span>Thêm Hành Trình Mới</span>
+          </div>
+          <button class="modal-close-btn" aria-label="Đóng"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form id="add-trip-form">
+          <div class="modal-body">
+            <!-- Title -->
+            <div class="form-group">
+              <label class="form-label" for="input-title">Tiêu đề chuyến đi <span class="req">*</span></label>
+              <input type="text" id="input-title" class="form-input" placeholder="VD: Khám phá Cực Đông Mũi Điện" required />
+            </div>
+
+            <!-- Location -->
+            <div class="form-group">
+              <label class="form-label" for="input-location">Địa danh / Tỉnh thành <span class="req">*</span></label>
+              <input type="text" id="input-location" class="form-input" placeholder="VD: Phú Yên, Nam Trung Bộ" required />
+            </div>
+
+            <!-- Lat & Lng Row with Picker -->
+            <div class="form-group">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label class="form-label" style="margin-bottom: 0;">Tọa độ GPS <span class="req">*</span></label>
+                <button type="button" id="btn-pick-coord" style="background: none; border: none; color: var(--primary); font-size: 0.78rem; font-weight: 700; cursor: pointer;">
+                  <i class="fa-solid fa-crosshairs"></i> Chọn trực tiếp trên bản đồ
+                </button>
+              </div>
+              <div class="form-row-2">
+                <input type="number" id="input-lat" class="form-input" placeholder="Vĩ độ (Lat, VD: 12.8872)" step="any" required />
+                <input type="number" id="input-lng" class="form-input" placeholder="Kinh độ (Lng, VD: 109.4628)" step="any" required />
+              </div>
+            </div>
+
+            <!-- Distance & Date -->
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="form-label" for="input-distance">Khoảng cách (km)</label>
+                <input type="number" id="input-distance" class="form-input" placeholder="VD: 240" min="0" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="input-date">Ngày đi <span class="req">*</span></label>
+                <input type="date" id="input-date" class="form-input" required />
+              </div>
+            </div>
+
+            <!-- Vehicle -->
+            <div class="form-group">
+              <label class="form-label" for="input-vehicle">Phương tiện di chuyển</label>
+              <input type="text" id="input-vehicle" class="form-input" placeholder="VD: Honda Winner X 150, Yamaha Exciter, Ô tô..." />
+            </div>
+
+            <!-- Description -->
+            <div class="form-group">
+              <label class="form-label" for="input-description">Nhật ký / Cảm nghĩ hành trình</label>
+              <textarea id="input-description" class="form-textarea" placeholder="Chia sẻ những khoảnh khắc đáng nhớ, cung đường vượt đèo, đồ ăn ngon, điểm dừng chân..."></textarea>
+            </div>
+
+            <!-- Multi-Image Upload Dropzone -->
+            <div class="form-group">
+              <label class="form-label">Hình ảnh kỷ niệm (Chọn 1 hoặc nhiều ảnh)</label>
+              <input type="file" id="trip-image-file" accept="image/*" multiple style="display: none;" />
+              
+              <div id="image-dropzone" class="image-dropzone">
+                <div class="dropzone-content">
+                  <i class="fa-solid fa-cloud-arrow-up"></i>
+                  <div class="dropzone-prompt">Nhấp để chọn ảnh hoặc kéo thả vào đây</div>
+                  <div class="dropzone-subtext">Hỗ trợ chọn nhiều ảnh JPG, PNG, WebP (Tải lên bucket 'travel-photos')</div>
+                </div>
+              </div>
+
+              <!-- Multi-image previews grid container -->
+              <div id="image-preview-container" class="preview-container-multi">
+                <div id="image-preview-grid" class="image-preview-grid"></div>
+                <div class="preview-actions-bar">
+                  <button type="button" id="btn-add-more-images" class="btn-secondary" style="font-size: 0.74rem; padding: 4px 10px;">
+                    <i class="fa-solid fa-plus"></i> Thêm ảnh khác
+                  </button>
+                  <button type="button" id="btn-clear-all-images" class="btn-secondary" style="font-size: 0.74rem; padding: 4px 10px; color: #dc2626;">
+                    <i class="fa-solid fa-trash"></i> Xóa tất cả ảnh
+                  </button>
+                </div>
+              </div>
+
+              <!-- Fallback Image URLs input -->
+              <div style="margin-top: 10px;">
+                <input type="text" id="input-image-url" class="form-input" placeholder="Hoặc dán URL ảnh (nhiều link cách nhau bằng dấu phẩy)" />
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary btn-modal-cancel">Hủy</button>
+            <button type="submit" id="btn-add-trip-submit" class="btn-primary">
+              <i class="fa-solid fa-plus"></i> Lưu chuyến đi
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ==================================================================== -->
+    <!-- MODAL 5: PWA INSTALL GUIDE FOR IOS / MOBILE                           -->
+    <!-- ==================================================================== -->
+    <div id="modal-pwa-install" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-pwa-title">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-header-title" id="modal-pwa-title">
+            <i class="fa-solid fa-mobile-screen-button"></i>
+            <span>Cài Đặt Tiến's Trips (PWA)</span>
+          </div>
+          <button class="modal-close-btn" aria-label="Đóng"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+          <div style="text-align: center; margin-bottom: 18px;">
+            <div style="width: 64px; height: 64px; margin: 0 auto 12px auto; background: var(--primary-gradient); border-radius: 16px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.8rem; box-shadow: var(--shadow-md);">
+              <i class="fa-solid fa-compass"></i>
+            </div>
+            <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--dark-900); margin-bottom: 4px;">Tiến's Footprints</h3>
+            <p style="font-size: 0.8rem; color: var(--gray-500);">Trải nghiệm toàn màn hình mượt mà như ứng dụng gốc trên iPhone &amp; Android</p>
+          </div>
+
+          <div style="background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px;">
+            <div style="font-size: 0.82rem; font-weight: 700; color: var(--primary); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+              <i class="fa-brands fa-apple"></i> Hướng dẫn cài trên iPhone / iPad (Safari):
+            </div>
+            <ol style="font-size: 0.8rem; color: var(--dark-700); line-height: 1.6; padding-left: 20px;">
+              <li>Nhấn vào biểu tượng <strong>Chia sẻ (Share <i class="fa-solid fa-arrow-up-from-bracket"></i>)</strong> ở thanh dưới cùng của trình duyệt Safari.</li>
+              <li>Cuộn danh sách xuống và chọn <strong>"Thêm vào Màn hình chính" (Add to Home Screen <i class="fa-regular fa-square-plus"></i>)</strong>.</li>
+              <li>Nhấn nút <strong>Thêm (Add)</strong> ở góc trên bên phải để hoàn tất.</li>
+            </ol>
+          </div>
+
+          <div id="android-install-section" style="display: none; text-align: center; margin-top: 10px;">
+            <button type="button" id="btn-pwa-direct-install" class="btn-primary" style="width: 100%; justify-content: center;">
+              <i class="fa-solid fa-download"></i> Cài đặt ngay lên thiết bị
+            </button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary btn-modal-cancel">Đóng</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================================================================== -->
+    <!-- MODAL 3: SUPABASE CONFIGURATION & SQL SCHEMA GUIDE                    -->
+    <!-- ==================================================================== -->
+    <div id="modal-supabase-config" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-cfg-title">
+      <div class="modal-card modal-large">
+        <div class="modal-header">
+          <div class="modal-header-title" id="modal-cfg-title">
+            <i class="fa-solid fa-database"></i>
+            <span>Cấu hình Supabase &amp; SQL Schema</span>
+          </div>
+          <button class="modal-close-btn" aria-label="Đóng"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+          <form id="supabase-config-form">
+            <p style="font-size: 0.83rem; color: var(--gray-600); margin-bottom: 14px;">
+              Bạn có thể nhập Project URL và Anon Key của dự án Supabase để đồng bộ dữ liệu thật:
+            </p>
+            <div class="form-group">
+              <label class="form-label" for="cfg-supabase-url">Supabase Project URL</label>
+              <input type="url" id="cfg-supabase-url" class="form-input" placeholder="https://xyzcompany.supabase.co" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="cfg-supabase-key">Supabase Anon Key</label>
+              <input type="password" id="cfg-supabase-key" class="form-input" placeholder="eyJhbGciOiJIUzI1NiIsInR..." />
+            </div>
+            <div style="display: flex; gap: 8px; margin-bottom: 20px;">
+              <button type="submit" class="btn-primary" style="font-size: 0.8rem; padding: 8px 16px;">
+                <i class="fa-solid fa-floppy-disk"></i> Lưu &amp; Kết Nối
+              </button>
+            </div>
+          </form>
+
+          <div style="border-top: 1px solid var(--gray-200); padding-top: 16px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div style="font-size: 0.85rem; font-weight: 700; color: var(--dark-800);">
+                <i class="fa-solid fa-code"></i> SQL Script Khởi tạo (Copy dán vào Supabase SQL Editor)
+              </div>
+              <button id="btn-copy-sql" class="btn-secondary" style="font-size: 0.74rem; padding: 4px 8px;">
+                <i class="fa-regular fa-copy"></i> Sao chép SQL
+              </button>
+            </div>
+            <pre id="schema-sql-text" class="code-box">-- 1. Bảng travel_trips
+create table if not exists public.travel_trips (
+  id uuid default gen_random_uuid() primary key,
+  title text not null,
+  location text not null,
+  lat float8 not null,
+  lng float8 not null,
+  distance_km int4 default 0,
+  travel_date date not null,
+  vehicle text not null,
+  description text,
+  image_urls text[] default array[]::text[],
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- 2. Kích hoạt Row Level Security (RLS)
+alter table public.travel_trips enable row level security;
+
+-- 3. Cho phép công chúng đọc (anonymous SELECT)
+create policy "Allow public read trips"
+  on public.travel_trips for select
+  using (true);
+
+-- 4. Cho phép người dùng đã xác thực Thêm/Sửa/Xóa
+create policy "Allow auth insert trips"
+  on public.travel_trips for insert
+  to authenticated
+  with check (true);
+
+create policy "Allow auth update trips"
+  on public.travel_trips for update
+  to authenticated
+  using (true);
+
+create policy "Allow auth delete trips"
+  on public.travel_trips for delete
+  to authenticated
+  using (true);
+
+-- 5. Bucket 'travel-photos' cho Supabase Storage
+insert into storage.buckets (id, name, public)
+values ('travel-photos', 'travel-photos', true)
+on conflict (id) do nothing;
+
+create policy "Allow public view photos"
+  on storage.objects for select
+  using (bucket_id = 'travel-photos');
+
+create policy "Allow auth upload photos"
+  on storage.objects for insert
+  to authenticated
+  with check (bucket_id = 'travel-photos');
+</pre>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary btn-modal-cancel">Đóng</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================================================================== -->
+    <!-- MODAL 4: FULLSCREEN PHOTO LIGHTBOX                                   -->
+    <!-- ==================================================================== -->
+    <div id="modal-lightbox" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Xem ảnh phóng to">
+      <div class="lightbox-content">
+        <button class="lightbox-close modal-close-btn" aria-label="Đóng"><i class="fa-solid fa-xmark"></i></button>
+        <img id="lightbox-img" class="lightbox-img" src="" alt="Full view" />
+        <div id="lightbox-caption" class="lightbox-caption"></div>
+      </div>
+    </div>
+
+    <!-- Floating Toast Notification Container -->
+    <div id="toast-container" aria-live="polite"></div>
+
+    <!-- Main Application Script -->
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

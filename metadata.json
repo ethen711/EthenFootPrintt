@@ -1,0 +1,6 @@
+{
+  "name": "Tiến's Footprints - Interactive Travel Log",
+  "description": "A personal interactive travel log web app featuring Leaflet topomap, journey markers, detailed trip sidebar, Supabase authentication, and trip management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
